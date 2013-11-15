@@ -18,18 +18,40 @@ You can read the complete license here :
 
 package com.vldocking.swing.docking;
 
-import java.beans.*;
-
-import java.awt.event.*;
-import javax.swing.*;
-import java.awt.*;
-import java.util.HashMap;
-import com.vldocking.swing.docking.animation.ComponentAnimator;
-import com.vldocking.swing.docking.animation.*;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Container;
+import java.awt.Cursor;
+import java.awt.Dimension;
+import java.awt.Insets;
+import java.awt.KeyboardFocusManager;
+import java.awt.Panel;
+import java.awt.Point;
+import java.awt.Rectangle;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
+import java.awt.event.MouseMotionListener;
+import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
 import java.lang.reflect.Method;
-import javax.swing.border.*;
+import java.util.HashMap;
+
+import javax.swing.BorderFactory;
+import javax.swing.JPanel;
+import javax.swing.SwingUtilities;
+import javax.swing.Timer;
+import javax.swing.UIManager;
+import javax.swing.border.Border;
 import javax.swing.event.AncestorEvent;
 import javax.swing.event.AncestorListener;
+
+import com.vldocking.swing.docking.animation.AnimationEvent;
+import com.vldocking.swing.docking.animation.AnimationListener;
+import com.vldocking.swing.docking.animation.ComponentAnimator;
 
 /** A component used to show the currently expanded view.
  * <p>
@@ -51,7 +73,7 @@ import javax.swing.event.AncestorListener;
  *
  */
 @SuppressWarnings({"rawtypes", "unchecked"})
-public class AutoHideExpandPanel extends JPanel implements SingleDockableContainer {
+public class AutoHideExpandPanel extends LockableUnlockableHeaderPanel implements SingleDockableContainer {
 
 	private static final long serialVersionUID = 1L;
 
@@ -91,7 +113,7 @@ public class AutoHideExpandPanel extends JPanel implements SingleDockableContain
 
 	private Panel heavyPanel; // used only when mixing lightweight and heavyweight components
 
-	private DockViewTitleBar titleBar = createTitleBar();
+	private DockViewTitleBar header = createHeader();
 
 	private AnimationControler animationControler = new AnimationControler();
 
@@ -118,6 +140,7 @@ public class AutoHideExpandPanel extends JPanel implements SingleDockableContain
 	= new javax.swing.Timer(250, new ActionListener() {
 
 		// timer used to hide the expanded panel when mouse is out too long
+		@Override
 		public void actionPerformed(ActionEvent actionEvent) {
 			// all this mess to allow compilation from java 1.4
 			Point mouseLocation = DockingUtilities.getMouseLocation();
@@ -207,6 +230,7 @@ public class AutoHideExpandPanel extends JPanel implements SingleDockableContain
 
 		addAncestorListener(new AncestorListener() { //2006/12/19 : reworked to avoid GC leak
 
+			@Override
 			public void ancestorAdded(AncestorEvent event) {
 				AutoHidePolicy.getPolicy().addPropertyChangeListener(controler);
 				if(DockingPreferences.isLightWeightUsageEnabled()) {
@@ -214,8 +238,10 @@ public class AutoHideExpandPanel extends JPanel implements SingleDockableContain
 				}
 			}
 
+			@Override
 			public void ancestorMoved(AncestorEvent event) {}
 
+			@Override
 			public void ancestorRemoved(AncestorEvent event) {
 				AutoHidePolicy.getPolicy().removePropertyChangeListener(controler);
 				if(DockingPreferences.isLightWeightUsageEnabled()) {
@@ -224,8 +250,13 @@ public class AutoHideExpandPanel extends JPanel implements SingleDockableContain
 			}
 		});
 
-		content.add(titleBar, BorderLayout.NORTH);
+		content.add(header, BorderLayout.NORTH);
 		//    initDockingFunctions();
+	}
+	
+	@Override
+	public DockViewTitleBar getHeader() {
+		return header;
 	}
 
 	private void installHeavyWeightParentIfNeeded(Dockable target) {
@@ -276,6 +307,7 @@ public class AutoHideExpandPanel extends JPanel implements SingleDockableContain
 		}
 	}
 
+	@Override
 	public boolean isOptimizedDrawingEnabled() {
 		return DockingPreferences.isLightWeightUsageEnabled();
 		// only when lightweight components (to ensure correct zorder for AWT)
@@ -283,7 +315,7 @@ public class AutoHideExpandPanel extends JPanel implements SingleDockableContain
 
 	/** Returns true if this panel is the ancestor of the focused component */
 	public boolean isActive() {
-		if(titleBar.isActive()) {
+		if(header.isActive()) {
 			return true;
 		} else {
 			// since 2.1 : the autohide component can contain a nested set of dockables, so the
@@ -346,13 +378,13 @@ public class AutoHideExpandPanel extends JPanel implements SingleDockableContain
 	}
 
 	/** creates the shared title bar for all expanded panels */
-	protected DockViewTitleBar createTitleBar() {
+	protected DockViewTitleBar createHeader() {
 		return DockableContainerFactory.getFactory().createTitleBar(); //2007/01/08
 		//return new DockViewTitleBar();
 	}
 
 	public DockViewTitleBar getTitleBar() {
-		return this.titleBar;
+		return this.header;
 	}
 
 	/** Creates the default borders for the expand panel */
@@ -425,6 +457,7 @@ public class AutoHideExpandPanel extends JPanel implements SingleDockableContain
 	private void initDockingFunctions() {
 		PropertyChangeListener listener = new PropertyChangeListener() {
 
+			@Override
 			public void propertyChange(PropertyChangeEvent e) {
 				if(e.getPropertyName().equals(DockViewTitleBar.PROPERTY_AUTOHIDE)) {
 					// from autohide to dock
@@ -446,13 +479,13 @@ public class AutoHideExpandPanel extends JPanel implements SingleDockableContain
 			}
 		};
 
-		titleBar.addPropertyChangeListener(DockViewTitleBar.PROPERTY_AUTOHIDE, listener);
-		titleBar.addPropertyChangeListener(DockViewTitleBar.PROPERTY_CLOSED, listener);
-		titleBar.addPropertyChangeListener(DockViewTitleBar.PROPERTY_DRAGGED, listener);
-		titleBar.addPropertyChangeListener(DockViewTitleBar.PROPERTY_FLOAT, listener);
-		titleBar.installDocking(desk);
+		header.addPropertyChangeListener(DockViewTitleBar.PROPERTY_AUTOHIDE, listener);
+		header.addPropertyChangeListener(DockViewTitleBar.PROPERTY_CLOSED, listener);
+		header.addPropertyChangeListener(DockViewTitleBar.PROPERTY_DRAGGED, listener);
+		header.addPropertyChangeListener(DockViewTitleBar.PROPERTY_FLOAT, listener);
+		header.installDocking(desk);
 
-		desk.installDockableDragSource(titleBar);
+		desk.installDockableDragSource(header);
 
 	}
 
@@ -611,8 +644,8 @@ public class AutoHideExpandPanel extends JPanel implements SingleDockableContain
 		});
 		}*/
 
-		titleBar.setDockable(selectedButton.getDockable());
-		desk.installDockableDragSource(titleBar);
+		header.setDockable(selectedButton.getDockable());
+		desk.installDockableDragSource(header);
 		switch(selectedButton.getZone()) {
 			case DockingConstants.INT_HIDE_TOP:
 				content.setBorder(expandFromTopBorder);
@@ -668,7 +701,7 @@ public class AutoHideExpandPanel extends JPanel implements SingleDockableContain
 		if(topDragger.isVisible()) {
 			i.top += topDragger.getHeight();
 		}
-		i.top += titleBar.getHeight();
+		i.top += header.getHeight();
 		if(leftDragger.isVisible()) {
 			i.left += leftDragger.getWidth();
 		}
@@ -693,7 +726,7 @@ public class AutoHideExpandPanel extends JPanel implements SingleDockableContain
 
 		setVisible(false);
 
-		titleBar.closePopUp();
+		header.closePopUp();
 
 		stopCollapseTimer();
 
@@ -704,15 +737,18 @@ public class AutoHideExpandPanel extends JPanel implements SingleDockableContain
 
 	}
 
+	@Override
 	public void uninstallDocking(DockingDesktop desktop) {
-		titleBar.uninstallDocking(desk);
+		header.uninstallDocking(desk);
 	}
 
+	@Override
 	public void installDocking(DockingDesktop desktop) {
 		this.desk = desktop;
 		initDockingFunctions();
 	}
 
+	@Override
 	public Dockable getDockable() {
 		if(selectedButton != null) {
 			return selectedButton.getDockable();
@@ -721,6 +757,7 @@ public class AutoHideExpandPanel extends JPanel implements SingleDockableContain
 		}
 	}
 
+	@Override
 	public String getUIClassID() {
 		return uiClassID;
 	}
@@ -738,12 +775,14 @@ public class AutoHideExpandPanel extends JPanel implements SingleDockableContain
 	/** inner class that follows animations of expansion */
 	private class AnimationControler implements AnimationListener {
 
+		@Override
 		public void animation(AnimationEvent e) {
 			isExpanding = e.getState() != AnimationEvent.ANIMATION_END;
 
 			if(e.getState() == AnimationEvent.ANIMATION_END) {
 				SwingUtilities.invokeLater(new Runnable() {
 
+					@Override
 					public void run() {
 						content.repaint();
 					}
@@ -764,6 +803,7 @@ public class AutoHideExpandPanel extends JPanel implements SingleDockableContain
 		/** used to avoid bad interactions between focus listeners and expand controler */
 		private boolean isUnderControl = false;
 
+		@Override
 		public void mouseClicked(MouseEvent e) {
 			// don't do anything during animation phase
 			if(! isExpanding) {
@@ -779,6 +819,7 @@ public class AutoHideExpandPanel extends JPanel implements SingleDockableContain
 					select(clicked); // will trigger a focus change is DockingPreferences.isHeavuWeight
 					SwingUtilities.invokeLater(new Runnable() {
 
+						@Override
 						public void run() {
 							expand();
 							isUnderControl = false;
@@ -791,6 +832,7 @@ public class AutoHideExpandPanel extends JPanel implements SingleDockableContain
 			}
 		}
 
+		@Override
 		public void mouseEntered(MouseEvent e) {
 			if(! isRolloverTimer) {
 				return;
@@ -804,6 +846,7 @@ public class AutoHideExpandPanel extends JPanel implements SingleDockableContain
 			}
 		}
 
+		@Override
 		public void mouseExited(MouseEvent e) {
 			if(! isRolloverTimer) {
 				return;
@@ -816,10 +859,13 @@ public class AutoHideExpandPanel extends JPanel implements SingleDockableContain
 			}
 		}
 
+		@Override
 		public void mousePressed(MouseEvent e) {}
 
+		@Override
 		public void mouseReleased(MouseEvent e) {}
 
+		@Override
 		public void propertyChange(PropertyChangeEvent e) {
 			/* triggered by autohide policy change*/
 			if(e.getPropertyName().equals(AutoHidePolicy.PROPERTY_EXPAND_MODE)) {
@@ -839,6 +885,7 @@ public class AutoHideExpandPanel extends JPanel implements SingleDockableContain
 
 		}
 
+		@Override
 		public void actionPerformed(ActionEvent e) {
 			// timer event : there is a button to expand
 			assert mouseEnteredButton != null;
@@ -846,6 +893,7 @@ public class AutoHideExpandPanel extends JPanel implements SingleDockableContain
 			select(mouseEnteredButton); // will collapse the previous button
 			SwingUtilities.invokeLater(new Runnable() {
 
+				@Override
 				public void run() {
 					expand();
 					isUnderControl = false;
@@ -864,6 +912,7 @@ public class AutoHideExpandPanel extends JPanel implements SingleDockableContain
 			this.zone = zone;
 		}
 
+		@Override
 		public void mouseDragged(MouseEvent e) {
 			/* implement the drag effect on expand panel : a single border
 			 * can be dragged (the one not overlapping the borders of the panel
@@ -939,18 +988,24 @@ public class AutoHideExpandPanel extends JPanel implements SingleDockableContain
 			desk.repaint();
 		}
 
+		@Override
 		public void mouseMoved(MouseEvent e) {}
 
+		@Override
 		public void mouseClicked(MouseEvent e) {}
 
+		@Override
 		public void mouseEntered(MouseEvent e) {}
 
+		@Override
 		public void mouseExited(MouseEvent e) {}
 
+		@Override
 		public void mousePressed(MouseEvent e) {
 			shouldCollapse = false; // begining or drag
 		}
 
+		@Override
 		public void mouseReleased(MouseEvent e) {
 			shouldCollapse = true; // end of drag
 		}
@@ -959,6 +1014,7 @@ public class AutoHideExpandPanel extends JPanel implements SingleDockableContain
 	private class FocusCollapser implements PropertyChangeListener {
 
 		// focusOwner
+		@Override
 		public void propertyChange(PropertyChangeEvent e) {
 			if(! controler.isUnderControl) {
 				// this is not a focus lost due to the expand controler

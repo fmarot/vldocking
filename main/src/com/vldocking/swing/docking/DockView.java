@@ -18,13 +18,22 @@ You can read the complete license here :
 
 package com.vldocking.swing.docking;
 
-import java.beans.*;
+import java.awt.BorderLayout;
+import java.awt.Dimension;
+import java.awt.Rectangle;
+import java.awt.Shape;
+import java.awt.geom.GeneralPath;
+import java.awt.geom.Rectangle2D;
+import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
 
-import java.awt.*;
-import java.awt.geom.*;
-import javax.swing.*;
+import javax.swing.SwingConstants;
+import javax.swing.UIManager;
 
-import com.vldocking.swing.docking.event.*;
+import com.vldocking.swing.docking.event.DockDragEvent;
+import com.vldocking.swing.docking.event.DockDropEvent;
+import com.vldocking.swing.docking.event.DockEvent;
+import com.vldocking.swing.docking.event.DockingActionCreateTabEvent;
 
 /** DefaultImplementation of the SingleDockableContainer.
  *<p>
@@ -56,13 +65,13 @@ import com.vldocking.swing.docking.event.*;
  * uninstalling is done twice.
  * @update 2007/01/08 Lilian Chamontin : delegated the creation of the titlebar to allow easy override.
  */
-public class DockView extends JPanel implements DockDropReceiver, SingleDockableContainer {
+public class DockView extends LockableUnlockableHeaderPanel implements DockDropReceiver, SingleDockableContainer {
 
 	private static final long serialVersionUID = 1L;
 
 	private static final String uiClassID = "DockViewUI";
 
-	protected DockViewTitleBar title = getTitleBar();
+	protected DockViewTitleBar		header				= getHeader();
 
 	/** the desktop managing this view  */
 	protected DockingDesktop desktop;
@@ -76,6 +85,7 @@ public class DockView extends JPanel implements DockDropReceiver, SingleDockable
 	/** listen to the titlebar actions */
 	private PropertyChangeListener listener = new PropertyChangeListener() {
 
+		@Override
 		public void propertyChange(PropertyChangeEvent e) {
 			if(e.getPropertyName().equals(DockViewTitleBar.PROPERTY_AUTOHIDE)) {
 				if(e.getOldValue().equals(Boolean.TRUE)) {
@@ -104,7 +114,7 @@ public class DockView extends JPanel implements DockDropReceiver, SingleDockable
 	 *   */
 	public DockView() {
 		super(new BorderLayout());
-		add(title, BorderLayout.NORTH);
+		add(header, BorderLayout.NORTH);
 	}
 
 	/** Constructs a new DockView for the given dockable.
@@ -122,9 +132,9 @@ public class DockView extends JPanel implements DockDropReceiver, SingleDockable
 	 *  */
 	public DockView(Dockable dockable, boolean showTitle) {
 		super(new BorderLayout());
-		add(title, BorderLayout.NORTH);
+		add(header, BorderLayout.NORTH);
 		if(! showTitle) {
-			title.setVisible(false);
+			header.setVisible(false);
 		}
 		setDockable(dockable);
 	}
@@ -133,6 +143,7 @@ public class DockView extends JPanel implements DockDropReceiver, SingleDockable
 	 *
 	 * {@inheritDoc}
 	 * */
+	@Override
 	public Dockable getDockable() {
 		return dockable;
 	}
@@ -146,8 +157,8 @@ public class DockView extends JPanel implements DockDropReceiver, SingleDockable
 		this.dockable = dockable;
 
 		add(dockable.getComponent(), BorderLayout.CENTER);
-		if(title != null) {
-			title.setDockable(dockable);
+		if (header != null) {
+			header.setDockable(dockable);
 		}
 
 		// allow resizing  of split pane beyond minimum size
@@ -158,6 +169,7 @@ public class DockView extends JPanel implements DockDropReceiver, SingleDockable
 
 	/** {@inheritDoc}
 	 */
+	@Override
 	public String toString() {
 		return "DockView of " + dockable.getDockKey();
 	}
@@ -165,12 +177,14 @@ public class DockView extends JPanel implements DockDropReceiver, SingleDockable
 	/** {@inheritDoc}
 	 * @since 2.0
 	 */
+	@Override
 	public String getUIClassID() {
 		return uiClassID;
 	}
 
 	/** {@inheritDoc}.
 	 */
+	@Override
 	public void processDockableDrag(DockDragEvent event) {
 		scanDrop(event, false);
 	}
@@ -179,6 +193,7 @@ public class DockView extends JPanel implements DockDropReceiver, SingleDockable
 	 * <p>
 	 * Please note that a drag into a DockView can also lead to create a DockTabbedPane.
 	 */
+	@Override
 	public void processDockableDrop(DockDropEvent event) {
 		scanDrop(event, true);
 	}
@@ -321,40 +336,44 @@ public class DockView extends JPanel implements DockDropReceiver, SingleDockable
 	}
 
 	/** {@inheritDoc} */
+	@Override
 	public void installDocking(DockingDesktop desktop) {
 		this.desktop = desktop;
-		desktop.installDockableDragSource(title);
-		title.addPropertyChangeListener(DockViewTitleBar.PROPERTY_AUTOHIDE, listener);
-		title.addPropertyChangeListener(DockViewTitleBar.PROPERTY_CLOSED, listener);
-		title.addPropertyChangeListener(DockViewTitleBar.PROPERTY_MAXIMIZED, listener);
-		title.addPropertyChangeListener(DockViewTitleBar.PROPERTY_FLOAT, listener);
-		title.installDocking(desktop);
+		desktop.installDockableDragSource(header);
+		header.addPropertyChangeListener(DockViewTitleBar.PROPERTY_AUTOHIDE, listener);
+		header.addPropertyChangeListener(DockViewTitleBar.PROPERTY_CLOSED, listener);
+		header.addPropertyChangeListener(DockViewTitleBar.PROPERTY_MAXIMIZED, listener);
+		header.addPropertyChangeListener(DockViewTitleBar.PROPERTY_FLOAT, listener);
+		header.installDocking(desktop);
 	}
 
 	/** {@inheritDoc} */
+	@Override
 	public void uninstallDocking(DockingDesktop desktop) {
-		if(title != null) { // safety check, as removing is sometimes cascaded and done once more than it should be 2005/12/09
+		super.uninstallDocking(desktop);
+		if (header != null) { // safety check, as removing is sometimes cascaded and done once more than it should be 2005/12/09
 			//System.out.println("uninstallDocking VIEW on " + dockable.getDockKey());
 
-			desktop.uninstallDockableDragSource(title);
-			title.removePropertyChangeListener(DockViewTitleBar.PROPERTY_AUTOHIDE, listener);
-			title.removePropertyChangeListener(DockViewTitleBar.PROPERTY_CLOSED, listener);
-			title.removePropertyChangeListener(DockViewTitleBar.PROPERTY_MAXIMIZED, listener);
-			title.removePropertyChangeListener(DockViewTitleBar.PROPERTY_FLOAT, listener);
-			title.uninstallDocking(desktop);
+			desktop.uninstallDockableDragSource(header);
+			header.removePropertyChangeListener(DockViewTitleBar.PROPERTY_AUTOHIDE, listener);
+			header.removePropertyChangeListener(DockViewTitleBar.PROPERTY_CLOSED, listener);
+			header.removePropertyChangeListener(DockViewTitleBar.PROPERTY_MAXIMIZED, listener);
+			header.removePropertyChangeListener(DockViewTitleBar.PROPERTY_FLOAT, listener);
+			header.uninstallDocking(desktop);
 		}
 		//remove(title);
-		title = null;
+		header = null;
 		this.desktop = null;
 
 	}
 
 	/** Returns (or creates) the title bar of this dockview  */
-	public DockViewTitleBar getTitleBar() {
-		if(title == null) {
-			title = DockableContainerFactory.getFactory().createTitleBar();//2007/01/08
+	@Override
+	public DockViewTitleBar getHeader() {
+		if (header == null) {
+			header = DockableContainerFactory.getFactory().createTitleBar();// 2007/01/08
 		}
-		return title;
+		return header;
 	}
 
 }

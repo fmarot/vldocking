@@ -18,10 +18,27 @@ You can read the complete license here :
 
 package com.vldocking.swing.docking;
 
-import javax.swing.*;
-import java.awt.*;
-import java.awt.geom.*;
-import com.vldocking.swing.docking.event.*;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Graphics;
+import java.awt.Point;
+import java.awt.Rectangle;
+import java.awt.Window;
+import java.awt.geom.Rectangle2D;
+
+import javax.swing.BorderFactory;
+import javax.swing.JSplitPane;
+import javax.swing.SwingUtilities;
+
+import com.vldocking.eventbus.EventBus;
+import com.vldocking.eventbus.EventBusListener;
+import com.vldocking.eventbus.events.DockingFrameworkEvent;
+import com.vldocking.eventbus.events.LockAllWidgetsEvent;
+import com.vldocking.eventbus.events.UnlockAllWidgetsEvent;
+import com.vldocking.swing.docking.event.DockDragEvent;
+import com.vldocking.swing.docking.event.DockDropEvent;
+import com.vldocking.swing.docking.event.DockEvent;
+import com.vldocking.swing.docking.event.DockingActionSplitComponentEvent;
 
 /** A Specialized JSplitPane which accepts drag and drop of DockableContainer.
  *<p>
@@ -34,7 +51,7 @@ import com.vldocking.swing.docking.event.*;
  * @author Lilian Chamontin, vlsolutions.
  * @version 1.0
  */
-public class SplitContainer extends JSplitPane implements DockDropReceiver {
+public class SplitContainer extends JSplitPane implements DockDropReceiver, EventBusListener {
 
 	private static final long serialVersionUID = 1L;
 	// this is for debugging purpose and will be removed.
@@ -44,9 +61,12 @@ public class SplitContainer extends JSplitPane implements DockDropReceiver {
 	private static final boolean DEBUG = false;
 	private static final String uiClassID = "DockingSplitPaneUI";
 
+	private EventBus				eventBus			= EventBus.INSTANCE;
+
 	/** Constructs a vertically splitted SplitContainer */
 	public SplitContainer() {
 		this(VERTICAL_SPLIT);
+		eventBus.subscribe(this);
 	}
 
 	/** Constructs a SplitContainer with the given JSplitPane orientation. */
@@ -57,14 +77,17 @@ public class SplitContainer extends JSplitPane implements DockDropReceiver {
 			Color c = colors[(++colorindex % colors.length)];
 			setBorder(BorderFactory.createLineBorder(c, 2));
 		}
+		eventBus.subscribe(this);
 	}
 
 	/** Overriden for custom UI delegation */
+	@Override
 	public String getUIClassID() {
 		return uiClassID;
 	}
 
 	/** Returns a readable String representing this SplitContainer */
+	@Override
 	public String toString() {
 		if(getOrientation() == HORIZONTAL_SPLIT) {
 			return "SplitContainer[HORIZONTAL, " + getTopComponent() + " / " + getBottomComponent() + ']';
@@ -86,11 +109,13 @@ public class SplitContainer extends JSplitPane implements DockDropReceiver {
 	}
 
 	/** {@inheritDoc} */
+	@Override
 	public void processDockableDrag(DockDragEvent event) {
 		scanContainer(event, false);
 	}
 
 	/** {@inheritDoc} */
+	@Override
 	public void processDockableDrop(DockDropEvent event) {
 		scanContainer(event, true);
 	}
@@ -138,6 +163,7 @@ public class SplitContainer extends JSplitPane implements DockDropReceiver {
 	private double proportionalLocation;
 
 	/** Overriden for a bug workaround*/
+	@Override
 	public void setDividerLocation(double proportionalLocation) {
 		if(! isPainted) {
 			hasProportionalLocation = true;
@@ -153,6 +179,7 @@ public class SplitContainer extends JSplitPane implements DockDropReceiver {
 		}
 	}
 
+	@Override
 	public void setDividerLocation(int location) {
 		super.setDividerLocation(location);
 		if(! DockingPreferences.isLightWeightUsageEnabled()) {
@@ -161,6 +188,7 @@ public class SplitContainer extends JSplitPane implements DockDropReceiver {
 			if(w != null) {
 				SwingUtilities.invokeLater(new Runnable() {
 
+					@Override
 					public void run() {
 						w.repaint();
 					}
@@ -170,6 +198,7 @@ public class SplitContainer extends JSplitPane implements DockDropReceiver {
 	}
 
 	/** overriden for a bug workaround reason */
+	@Override
 	public void paint(Graphics g) {
 		if(! isPainted) {
 			isPainted = true;
@@ -187,6 +216,7 @@ public class SplitContainer extends JSplitPane implements DockDropReceiver {
 	 * If contained components are SplitContainers, their are also reset to their
 	 * preferredSize.
 	 *  */
+	@Override
 	public void resetToPreferredSizes() {
 		super.resetToPreferredSizes();
 		if(getLeftComponent() instanceof SplitContainer) {
@@ -306,6 +336,15 @@ public class SplitContainer extends JSplitPane implements DockDropReceiver {
 		}
 	}
 
+	@Override
+	public void notifyDockingFrameworkEvent(DockingFrameworkEvent event) {
+		if (event instanceof UnlockAllWidgetsEvent) {
+			setDividerSize(5);
+		} else if (event instanceof LockAllWidgetsEvent) {
+			setDividerSize(-1);
+		}
+	}
+
 }
 
 /* Utility class, resizes a splitcontainer after its size is known (needs an invokelater after
@@ -334,6 +373,7 @@ class SplitResizer implements Runnable {
 		isDouble = true;
 	}
 
+	@Override
 	public void run() {
 		// used as invokeLater, as the size of the splitpane is not known
 		// when split is first inserted.

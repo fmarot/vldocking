@@ -18,9 +18,6 @@ You can read the complete license here :
 
 package com.vldocking.swing.docking;
 
-import com.vldocking.swing.tabbedpane.JTabbedPaneSmartIcon;
-import com.vldocking.swing.tabbedpane.JTabbedPaneSmartIconManager;
-import com.vldocking.swing.tabbedpane.SmartIconJButton;
 import java.awt.BorderLayout;
 import java.awt.Container;
 import java.awt.Dimension;
@@ -34,6 +31,7 @@ import java.awt.event.MouseListener;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.util.ArrayList;
+
 import javax.swing.AbstractAction;
 import javax.swing.Icon;
 import javax.swing.JMenuItem;
@@ -41,6 +39,10 @@ import javax.swing.JPopupMenu;
 import javax.swing.JTabbedPane;
 import javax.swing.KeyStroke;
 import javax.swing.UIManager;
+
+import com.vldocking.swing.tabbedpane.JTabbedPaneSmartIcon;
+import com.vldocking.swing.tabbedpane.JTabbedPaneSmartIconManager;
+import com.vldocking.swing.tabbedpane.SmartIconJButton;
 
 /** This component is used to display single dockables like if they were in a tabbed pane.
  * <p>
@@ -84,6 +86,7 @@ public class DockViewAsTab extends DockView implements SingleDockableContainer {
 
 		private static final long serialVersionUID = 1L;
 
+		@Override
 		public void actionPerformed(ActionEvent e) {
 			desktop.close(getDockable());
 		}
@@ -94,6 +97,7 @@ public class DockViewAsTab extends DockView implements SingleDockableContainer {
 
 		private static final long serialVersionUID = 1L;
 
+		@Override
 		public void actionPerformed(ActionEvent e) {
 			maximizeAction();
 		}
@@ -104,6 +108,7 @@ public class DockViewAsTab extends DockView implements SingleDockableContainer {
 
 		private static final long serialVersionUID = 1L;
 
+		@Override
 		public void actionPerformed(ActionEvent e) {
 			desktop.setAutoHide(getDockable(), true);
 		}
@@ -114,6 +119,7 @@ public class DockViewAsTab extends DockView implements SingleDockableContainer {
 
 		private static final long serialVersionUID = 1L;
 
+		@Override
 		public void actionPerformed(ActionEvent e) {
 			desktop.setFloating(getDockable(), true);
 		}
@@ -135,6 +141,7 @@ public class DockViewAsTab extends DockView implements SingleDockableContainer {
 	/** listen to the key changes */
 	private PropertyChangeListener keyListener = new PropertyChangeListener() {
 
+		@Override
 		public void propertyChange(PropertyChangeEvent e) {
 			String pName = e.getPropertyName();
 			if(pName.equals(DockKey.PROPERTY_ICON)) {
@@ -161,6 +168,7 @@ public class DockViewAsTab extends DockView implements SingleDockableContainer {
 	/** reacts to single and double click on title bar */
 	private MouseListener titleMouseListener = new MouseAdapter() {
 
+		@Override
 		public void mouseClicked(MouseEvent e) {
 			if(e.getClickCount() == 2) {
 				maximizeAction();
@@ -169,12 +177,14 @@ public class DockViewAsTab extends DockView implements SingleDockableContainer {
 			}
 		}
 
+		@Override
 		public void mousePressed(MouseEvent e) {
 			if(e.isPopupTrigger()) {
 				checkForPopUp(e);
 			}
 		}
 
+		@Override
 		public void mouseReleased(MouseEvent e) {
 			if(e.isPopupTrigger()) {
 				checkForPopUp(e);
@@ -184,6 +194,7 @@ public class DockViewAsTab extends DockView implements SingleDockableContainer {
 
 	private ActionListener actionListener = new ActionListener() {
 
+		@Override
 		public void actionPerformed(ActionEvent e) {
 			if(e.getActionCommand().equals("dock")) {
 				dockAction();
@@ -389,15 +400,16 @@ public class DockViewAsTab extends DockView implements SingleDockableContainer {
 		}
 	}
 
+	@Override
 	public void setDockable(Dockable d) {
 		// overriden to disable DockView settings
 	}
 
 	public void setDockableAsTab(final Dockable d) {
 		this.dockable = d;
-		if(title != null) { // still needed as removeing it triggers Exception... we'll have to
+		if (header != null) { // still needed as removeing it triggers Exception... we'll have to
 			// remove it one day (when building a proper ui class)
-			title.setDockable(dockable);
+			header.setDockable(dockable);
 		}
 
 		resetTabIcons();
@@ -438,6 +450,7 @@ public class DockViewAsTab extends DockView implements SingleDockableContainer {
 	}
 
 	/** {@inheritDoc} */
+	@Override
 	public void installDocking(DockingDesktop desktop) {
 		this.desktop = desktop;
 		desktop.installDockableDragSource(tabHeader);
@@ -445,11 +458,13 @@ public class DockViewAsTab extends DockView implements SingleDockableContainer {
 	}
 
 	/** {@inheritDoc} */
+	@Override
 	public void uninstallDocking(DockingDesktop desktop) {
 		desktop.uninstallDockableDragSource(tabHeader);
 		dockable.getDockKey().removePropertyChangeListener(keyListener);
 	}
 
+	@Override
 	public String getUIClassID() {
 		return "PanelUI";  // default panel UI
 	}
@@ -462,19 +477,23 @@ public class DockViewAsTab extends DockView implements SingleDockableContainer {
 
 		private static final long serialVersionUID = 1L;
 
+		@Override
 		public boolean startDragComponent(Point p) {
 			Rectangle bounds = getBoundsAt(0);
 			return bounds.contains(p);
 		}
 
+		@Override
 		public Container getDockableContainer() {
 			return DockViewAsTab.this;
 		}
 
+		@Override
 		public Dockable getDockable() {
 			return dockable;
 		}
 
+		@Override
 		public void endDragComponent(boolean dropped) {}
 
 	}

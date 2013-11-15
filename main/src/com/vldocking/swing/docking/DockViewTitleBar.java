@@ -645,7 +645,7 @@ public class DockViewTitleBar extends JPanel implements DockableDragSource {
 			if(ancestor != null) {
 				if(ancestor instanceof DockView) {
 					DockView view = (DockView) ancestor;
-					DockViewTitleBar tb = view.getTitleBar();
+					DockViewTitleBar tb = view.getHeader();
 					if(tb == activeTitleBar) {
 						// no view change in focus
 					} else if(tb != null) {
